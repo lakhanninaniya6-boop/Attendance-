@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I Am There Foundation</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+body{margin:0;background:#f1f5f9;color:#0f172a}
+header{background:#1d4ed8;color:#fff;padding:14px;text-align:center;font-size:20px;font-weight:bold}
+.tabs{display:flex;background:#fff;position:sticky;top:0;box-shadow:0 1px 4px #0002}
+.tabs button{flex:1;padding:12px;border:0;background:#fff;font-size:15px;font-weight:bold;color:#475569}
+.tabs button.on{color:#1d4ed8;border-bottom:3px solid #1d4ed8}
+.page{display:none;padding:12px;max-width:800px;margin:auto}
+.page.on{display:block}
+.card{background:#fff;border-radius:10px;padding:12px;margin-bottom:10px;box-shadow:0 1px 3px #0001}
+input,select{width:100%;padding:10px;margin:4px 0 8px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px}
+button.b{padding:10px 14px;border:0;border-radius:8px;background:#1d4ed8;color:#fff;font-size:14px;font-weight:bold;margin:2px}
+button.g{background:#16a34a}button.r{background:#dc2626}button.o{background:#64748b}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>div{flex:1;min-width:140px}
+.stat{text-align:center;font-weight:bold}
+.stat span{display:block;font-size:24px;color:#1d4ed8}
+.pend{color:#dc2626;font-weight:bold}.paid{color:#16a34a;font-weight:bold}
+.tag{display:inline-block;padding:3px 8px;border-radius:6px;font-size:12px;background:#e2e8f0}
+</style>
+</head>
+<body>
+<header>I Am There Foundation</header>
+<div class="tabs">
+<button class="on" onclick="tab('home',this)">Home</button>
+<button onclick="tab('students',this)">Students</button>
+<button onclick="tab('att',this)">Attendance</button>
+<button onclick="tab('data',this)">Backup</button>
+</div>
+
+<div id="home" class="page on">
+<div class="row">
+<div class="card stat"><span id="sTotal">0</span>Total Students</div>
+<div class="card stat"><span id="sPres">0</span>Present Today</div>
+<div class="card stat"><span id="sPend">0</span>Pending Fees</div>
+<div class="card stat"><span id="sExp">0</span>Expiring in 7 Days</div>
+</div>
+</div>
+
+<div id="students" class="page">
+<div class="card">
+<b id="formTitle">नया स्टूडेंट</b>
+<input id="name" placeholder="नाम">
+<input id="phone" placeholder="फ़ोन नंबर" type="tel">
+<input id="course" placeholder="कोर्स (जैसे Tally, DCA, MS Office)">
+<div class="row">
+<div>जॉइनिंग डेट<input id="join" type="date"></div>
+<div>लास्ट डेट<input id="last" type="date"></div>
+</div>
+<div class="row">
+<div>कुल फीस<input id="total" type="number" placeholder="0"></div>
+<div>जमा फीस<input id="paid" type="number" placeholder="0"></div>
+</div>
+<button class="b g" onclick="saveStudent()">सेव करो</button>
+<button class="b o" onclick="clearForm()">साफ़ करो</button>
+</div>
+<input id="search" placeholder="नाम या कोर्स से खोजो" oninput="renderStudents()">
+<div id="list"></div>
+</div>
+
+<div id="att" class="page">
+<div class="card">तारीख चुनो<input id="adate" type="date" onchange="renderAtt()"></div>
+<div id="alist"></div>
+</div>
+
+<div id="data" class="page">
+<div class="card">
+<button class="b" onclick="backup()">Backup डाउनलोड करो</button>
+<p>Restore के लिए पुरानी backup फ़ाइल चुनो:</p>
+<input type="file" accept=".json" onchange="restore(event)">
+<button class="b r" onclick="wipe()">सारा डेटा मिटाओ</button>
+</div>
+</div>
+
+<script>
+let S=JSON.parse(localStorage.getItem('iat_students')||'[]');
+let A=JSON.parse(localStorage.getItem('iat_att')||'{}');
+let editId=null;
+const $=id=>document.getElementById(id);
+const today=()=>new Date().toISOString().slice(0,10);
+function save(){localStorage.setItem('iat_students',JSON.stringify(S));localStorage.setItem('iat_att',JSON.stringify(A));stats()}
+function tab(n,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));$(n).classList.add('on');document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');if(n==='att')renderAtt();if(n==='students')renderStudents();stats()}
+function saveStudent(){
+const name=$('name').value.trim();if(!name){alert('नाम लिखो');return}
+const o={id:editId||Date.now(),name,phone:$('phone').value,course:$('course').value,join:$('join').value,last:$('last').value,total:+$('total').value||0,paid:+$('paid').value||0};
+if(editId){S=S.map(s=>s.id===editId?o:s)}else{S.push(o)}
+save();clearForm();renderStudents()}
+function clearForm(){editId=null;['name','phone','course','join','last','total','paid'].forEach(i=>$(i).value='');$('formTitle').textContent='नया स्टूडेंट'}
+function edit(id){const s=S.find(x=>x.id===id);editId=id;$('name').value=s.name;$('phone').value=s.phone;$('course').value=s.course;$('join').value=s.join;$('last').value=s.last;$('total').value=s.total;$('paid').value=s.paid;$('formTitle').textContent='एडिट: '+s.name;window.scrollTo(0,0)}
+function del(id){if(confirm('डिलीट करें?')){S=S.filter(s=>s.id!==id);save();renderStudents()}}
+function addPay(id){const v=+prompt('कितनी फीस जमा हुई?');if(v>0){const s=S.find(x=>x.id===id);s.paid+=v;save();renderStudents()}}
+function renderStudents(){
+const q=$('search').value.toLowerCase();
+$('list').innerHTML=S.filter(s=>(s.name+s.course).toLowerCase().includes(q)).map(s=>{
+const pend=s.total-s.paid;
+return `<div class="card"><b>${s.name}</b> <span class="tag">${s.course||'-'}</span><br>
+📞 ${s.phone||'-'}<br>जॉइनिंग: ${s.join||'-'} | लास्ट: ${s.last||'-'}<br>
+कुल: ₹${s.total} | जमा: <span class="paid">₹${s.paid}</span> | पेंडिंग: <span class="pend">₹${pend}</span><br>
+<button class="b g" onclick="addPay(${s.id})">फीस जमा</button>
+<button class="b" onclick="edit(${s.id})">एडिट</button>
+<button class="b r" onclick="del(${s.id})">डिलीट</button>
+${s.phone&&pend>0?`<a href="https://wa.me/91${s.phone}?text=${encodeURIComponent('नमस्ते '+s.name+', आपकी ₹'+pend+' फीस बाकी है। - I Am There Foundation')}" target="_blank"><button class="b o">WhatsApp रिमाइंडर</button></a>`:''}</div>`}).join('')||'<div class="card">कोई स्टूडेंट नहीं</div>'}
+function renderAtt(){
+if(!$('adate').value)$('adate').value=today();
+const d=$('adate').value;A[d]=A[d]||{};
+$('alist').innerHTML=S.map(s=>{const st=A[d][s.id]||'';
+return `<div class="card"><b>${s.name}</b> <span class="tag">${s.course||'-'}</span><br>
+<button class="b ${st==='P'?'g':'o'}" onclick="mark(${s.id},'P')">Present</button>
+<button class="b ${st==='A'?'r':'o'}" onclick="mark(${s.id},'A')">Absent</button></div>`}).join('')||'<div class="card">पहले स्टूडेंट जोड़ो</div>'}
+function mark(id,v){const d=$('adate').value;A[d]=A[d]||{};A[d][id]=v;save();renderAtt()}
+function stats(){
+$('sTotal').textContent=S.length;
+const t=A[today()]||{};$('sPres').textContent=Object.values(t).filter(v=>v==='P').length;
+$('sPend').textContent='₹'+S.reduce((a,s)=>a+(s.total-s.paid),0);
+const now=new Date(),w=new Date(Date.now()+7*864e5);
+$('sExp').textContent=S.filter(s=>s.last&&new Date(s.last)>=now&&new Date(s.last)<=w).length}
+function backup(){const b=new Blob([JSON.stringify({S,A})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='iat-backup-'+today()+'.json';a.click()}
+function restore(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);S=d.S||[];A=d.A||{};save();renderStudents();alert('Restore हो गया')}catch(x){alert('फ़ाइल गलत है')}};r.readAsText(f)}
+function wipe(){if(confirm('सारा डेटा मिट जाएगा, पक्का?')){S=[];A={};save();renderStudents()}}
+stats();renderStudents();
+</script>
+</body>
+</html>
